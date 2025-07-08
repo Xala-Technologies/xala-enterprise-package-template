@@ -1,0 +1,206 @@
+name: '{{PACKAGE_DISPLAY_NAME}} - Continuous Integration'
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_ENV: test
+  FORCE_COLOR: 1
+
+jobs:
+  test:
+    name: Test on Node.js ${{ matrix.node-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 21.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - uses: actions/cache@v3
+        name: Setup pnpm cache
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type checking
+        run: pnpm run typecheck
+
+      - name: Run linting
+        run: pnpm run lint
+
+      - name: Run tests
+        run: pnpm run test:ci
+
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+  build:
+    name: Build and validate
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build package
+        run: pnpm run build
+
+      - name: Validate package integrity
+        run: |
+          test -f dist/index.js
+          test -f dist/index.d.ts
+
+          cat > validate_package.mjs << 'EOF'
+          import fs from 'fs';
+          const pkg = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+          console.log('Package:', pkg.name, pkg.version);
+          if (!pkg.main || !pkg.types) throw new Error('Missing main or types field');
+          console.log('✅ Package validation passed');
+          EOF
+
+          node validate_package.mjs
+          rm validate_package.mjs
+
+      - name: Check bundle size
+        run: |
+          ls -la dist/
+          BUNDLE_SIZE=$(find dist/ -name "*.js" -not -name "*.d.ts" -exec wc -c {} + | tail -1 | awk '{print $1}')
+          echo "Bundle size: $BUNDLE_SIZE bytes"
+          if [ $BUNDLE_SIZE -gt 5242880 ]; then
+            echo "Bundle size exceeds 5MB limit"
+            exit 1
+          fi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7
+
+  validate-norwegian-compliance:
+    name: '{{PACKAGE_DISPLAY_NAME}} - Norwegian Compliance'
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8.15.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+
+      - name: Test Norwegian Compliance Features
+        run: node scripts/test-norwegian-compliance.mjs
+
+  documentation-check:
+    name: Documentation validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check required documentation files
+        run: |
+          test -f README.md || (echo "Missing README.md" && exit 1)
+          test -f docs/README.md || (echo "Missing docs/README.md" && exit 1)
+          test -f docs/getting-started.md || (echo "Missing getting started guide" && exit 1)
+          test -f docs/implementation-guide.md || (echo "Missing implementation guide" && exit 1)
+          test -f docs/troubleshooting.md || (echo "Missing troubleshooting guide" && exit 1)
+          test -f docs/compliance/norwegian-compliance.md || (echo "Missing Norwegian compliance docs" && exit 1)
+          test -f docs/contributing.md || (echo "Missing contributing guide" && exit 1)
+          echo "✅ All required documentation files present"
+
+  summary:
+    name: '{{PACKAGE_DISPLAY_NAME}} - CI Summary'
+    runs-on: ubuntu-latest
+    needs: [test, build, validate-norwegian-compliance, documentation-check]
+    if: always()
+
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "{{PACKAGE_DISPLAY_NAME}} CI Results Summary:"
+          echo "- Tests: ${{ needs.test.result }}"
+          echo "- Build: ${{ needs.build.result }}"
+          echo "- Norwegian Compliance: ${{ needs.validate-norwegian-compliance.result }}"
+          echo "- Documentation: ${{ needs.documentation-check.result }}"
+
+          if [[ "${{ needs.test.result }}" != "success" ||
+                "${{ needs.build.result }}" != "success" ||
+                "${{ needs.validate-norwegian-compliance.result }}" != "success" ||
+                "${{ needs.documentation-check.result }}" != "success" ]]; then
+            echo "❌ One or more CI checks failed"
+            exit 1
+          fi
+
+          echo "✅ All {{PACKAGE_DISPLAY_NAME}} CI checks passed successfully"
