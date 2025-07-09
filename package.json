@@ -68,10 +68,10 @@
     "accessibility:wcag": "echo '♿ WCAG 2.2 AA Testing' && grep -r 'accessibility\\|wcag\\|aria-' src/ platforms/ || echo 'No accessibility implementations found'",
     "analyze:bundle": "rollup-plugin-analyzer dist/index.js",
     "analyze:size": "bundlesize",
-    "audit:compliance": "npm run compliance:full && npm run compliance:report",
-    "prebuild": "npm run clean && npm run lint && npm run typecheck",
-    "build": "rollup -c && npm run build:docs",
-    "build:analyze": "npm run build:prod && npm run analyze:bundle",
+    "audit:compliance": "pnpm run compliance:full && pnpm run compliance:report",
+    "prebuild": "pnpm run clean && pnpm run lint && pnpm run typecheck",
+    "build": "rollup -c && pnpm run build:docs",
+    "build:analyze": "pnpm run build:prod && pnpm run analyze:bundle",
     "build:api": "rollup -c --bundleConfigAsCjs platforms/api/index.ts",
     "build:core": "rollup -c --bundleConfigAsCjs --input src/index.ts --output.file dist/index.js",
     "build:desktop": "rollup -c --bundleConfigAsCjs platforms/desktop/index.ts",
@@ -83,10 +83,10 @@
     "build:tools": "rollup -c --bundleConfigAsCjs tools/cli/index.ts",
     "build:web": "rollup -c --bundleConfigAsCjs platforms/web/index.ts",
     "clean": "rimraf dist",
-    "compliance:full": "npm run nsm:security-scan && npm run gdpr:audit && npm run digdir:standards-check && npm run accessibility:wcag && npm run i18n:validate",
-    "compliance:quick": "npm run nsm:classification-check && npm run gdpr:validate && npm run digdir:api-validation",
+    "compliance:full": "pnpm run nsm:security-scan && pnpm run gdpr:audit && pnpm run digdir:standards-check && pnpm run accessibility:wcag && pnpm run i18n:validate",
+    "compliance:quick": "pnpm run nsm:classification-check && pnpm run gdpr:validate && pnpm run digdir:api-validation",
     "compliance:report": "echo '📊 Generating Norwegian Compliance Report' && node dist/tools/cli/index.js analyze --compliance --output=compliance-report.json",
-    "dev": "npm run build:dev",
+    "dev": "pnpm run build:dev",
     "digdir:api-validation": "echo '📡 DigDir API Validation' && grep -r 'openapi\\|swagger\\|api' src/ platforms/ || echo 'No API documentation found'",
     "digdir:interoperability": "echo '🔗 DigDir Interoperability' && grep -r 'digdir\\|DigDir\\|interoperability' src/ platforms/ || echo 'No DigDir implementations found'",
     "digdir:standards-check": "echo '🏛️ DigDir Standards Check' && node dist/tools/cli/index.js validate --digdir",
@@ -101,7 +101,7 @@
     "lint:fix": "eslint src/**/*.ts platforms/**/*.ts tests/**/*.ts --fix",
     "nsm:classification-check": "echo '🏛️ NSM Classification Check' && grep -r 'NSM_CLASSIFICATION\\|nsmClassification' src/ platforms/ || echo 'No NSM classifications found'",
     "nsm:security-scan": "echo '🔒 NSM Security Scan' && node dist/tools/cli/index.js audit --nsm --classification={{NSM_CLASSIFICATION}}",
-    "prepack": "npm run build:prod && npm run validate:build",
+    "prepack": "pnpm run build:prod && pnpm run validate:build",
     "prepare": "husky install",
     "release": "semantic-release",
     "security:scan": "echo '🔒 Security Scan' && npm audit --audit-level=moderate",
@@ -111,25 +111,25 @@
     "test:coverage": "jest --coverage",
     "test:imports": "node scripts/test-imports.js",
     "test:integration": "jest --testPathPattern=tests/integration",
-    "test:matrix": "npm run test:unit && npm run test:integration && npm run test:platforms && npm run test:compliance && npm run test:performance",
+    "test:matrix": "pnpm run test:unit && pnpm run test:integration && pnpm run test:platforms && pnpm run test:compliance && pnpm run test:performance",
     "test:performance": "jest --testPathPattern=tests/performance",
     "test:platforms": "jest --testPathPattern=tests/platforms",
     "test:unit": "jest --testPathPattern=__tests__",
     "typecheck": "tsc --noEmit",
-    "typecheck:all": "npm run typecheck && npm run typecheck:examples",
+    "typecheck:all": "pnpm run typecheck && pnpm run typecheck:examples",
     "typecheck:examples": "cd examples && tsc --noEmit",
     "typecheck:watch": "tsc --noEmit --watch",
     "validate:build": "node scripts/validate-build.js",
     "version": "conventional-changelog -p angular -i CHANGELOG.md -s && git add CHANGELOG.md",
     "workflow:pre-commit": "lint-staged",
-    "workflow:validate": "npm run lint:fix && npm run format:check && npm run typecheck && npm run compliance:quick",
+    "workflow:validate": "pnpm run lint:fix && pnpm run format:check && pnpm run typecheck && pnpm run compliance:quick",
     "🇳🇴 Norwegian Compliance Scripts": "echo 'Norwegian Government Compliance Tools'"
   },
   "husky": {
     "hooks": {
-      "pre-commit": "npm run lint && npm run typecheck",
+      "pre-commit": "pnpm run lint && pnpm run typecheck",
       "commit-msg": "conventional-changelog-lint",
-      "pre-push": "npm run test:matrix"
+      "pre-push": "pnpm run test:matrix"
     }
   },
   "dependencies": {
@@ -191,7 +191,7 @@
       "optional": true
     }
   },
-  "packageManager": "pnpm@8.15.0",
+  "packageManager": "pnpm@9.15.9",
   "engines": {
     "node": ">=18.0.0",
     "pnpm": ">=8.0.0"
@@ -209,8 +209,7 @@
       }
     },
     "overrides": {
-      "axios@>=1.3.2 <=1.7.3": ">=1.7.4",
-      "axios@>=1.0.0 <1.8.2": ">=1.8.2",
+      "axios": ">=1.8.2",
       "iltorb": false,
       "nan": false
     },
