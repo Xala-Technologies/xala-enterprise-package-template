@@ -51,3 +51,8 @@ logs
 # Norwegian compliance reports (optional)
 compliance-report.json
 audit-report.json
+
+# Lock files - excluded to prevent large file push issues
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
