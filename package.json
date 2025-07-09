@@ -203,15 +203,7 @@
     "peerDependencyRules": {
       "ignoreMissing": [
         "*"
-      ],
-      "allowedVersions": {
-        "react-native": "*"
-      }
-    },
-    "overrides": {
-      "axios": ">=1.8.2",
-      "iltorb": false,
-      "nan": false
+      ]
     },
     "neverBuiltDependencies": [
       "iltorb",
